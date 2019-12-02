@@ -20,7 +20,7 @@ type Certificates struct {
 	FQDN         string              `json:"fqdn,omitempty"`
 	Port         int                 `json:"port,omitempty"`
 	Protocol     string              `json:"protocol,omitempty"`
-	Error        string              `json:"error,omitempty"`
+	Error        bool                `json:"error,omitempty"`
 	ErrorMessage string              `json:"errormessage,omitempty"`
 	Parsed       []*x509.Certificate `json:"parsed,omitempty"`
 	Raw          []byte              `json:"raw,omitempty"`
@@ -37,14 +37,14 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 	// Valid server name (ASCII or IDN)
 	fqdn, err := idna.ToASCII(fqdn)
 	if err != nil {
-		r.Error = "Failed"
+		r.Error = true
 		r.ErrorMessage = err.Error()
 		return r
 	}
 
 	_, err = net.ResolveIPAddr("ip", fqdn)
 	if err != nil {
-		r.Error = "Failed"
+		r.Error = true
 		r.ErrorMessage = err.Error()
 		return r
 	}
@@ -64,7 +64,7 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 		conn, err := tls.DialWithDialer(dialconf, "tcp", fqdnport, tlsconf)
 		// conn, err := tls.Dial("tcp", fqdnport, dialconf)
 		if err != nil {
-			r.Error = "Failed"
+			r.Error = true
 			r.ErrorMessage = err.Error()
 			return r
 		}
@@ -72,7 +72,7 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 		connState := conn.ConnectionState()
 		peerChain := connState.PeerCertificates
 		if len(peerChain) == 0 {
-			r.Error = "Failed"
+			r.Error = true
 			r.ErrorMessage = err.Error()
 			return r
 		}
@@ -80,7 +80,7 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 		for _, peer := range peerChain {
 			parsed, err := x509.ParseCertificate(peer.Raw)
 			if err != nil {
-				r.Error = "Failed"
+				r.Error = true
 				r.ErrorMessage = err.Error()
 				return r
 			}
@@ -94,7 +94,7 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 
 		c, err := smtp.Dial(fqdn + ":" + strconv.Itoa(port))
 		if err != nil {
-			r.Error = "Failed"
+			r.Error = true
 			r.ErrorMessage = err.Error()
 			return r
 		}
@@ -103,7 +103,7 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 
 		cs, ok := c.TLSConnectionState()
 		if !ok {
-			r.Error = "Failed"
+			r.Error = true
 			r.ErrorMessage = err.Error()
 			return r
 		}
@@ -111,14 +111,14 @@ func Get(fqdn string, port int, protocol string) *Certificates {
 
 		peerChain := cs.PeerCertificates
 		if len(peerChain) == 0 {
-			r.Error = "Failed"
+			r.Error = true
 			r.ErrorMessage = err.Error()
 			return r
 		}
 		for _, peer := range peerChain {
 			parsed, err := x509.ParseCertificate(peer.Raw)
 			if err != nil {
-				r.Error = "Failed"
+				r.Error = true
 				r.ErrorMessage = err.Error()
 				return r
 			}
